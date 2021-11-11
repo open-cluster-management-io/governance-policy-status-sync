@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 	policiesv1 "github.com/open-cluster-management/governance-policy-propagator/pkg/apis/policy/v1"
 	"github.com/open-cluster-management/governance-policy-propagator/test/utils"
+	syncUtils "github.com/open-cluster-management/governance-policy-status-sync/test/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -20,27 +21,27 @@ const case3PolicyYaml string = "../resources/case3_multiple_templates/case3-test
 var _ = Describe("Test status sync with multiple templates", func() {
 	BeforeEach(func() {
 		By("Creating a policy on hub cluster in ns:" + testNamespace)
-		utils.Kubectl("apply", "-f", case3PolicyYaml, "-n", testNamespace,
+		syncUtils.Kubectl("apply", "-f", case3PolicyYaml, "-n", testNamespace,
 			"--kubeconfig=../../kubeconfig_hub")
 		hubPlc := utils.GetWithTimeout(clientHubDynamic, gvrPolicy, case3PolicyName, testNamespace, true, defaultTimeoutSeconds)
 		Expect(hubPlc).NotTo(BeNil())
 		By("Creating a policy on managed cluster in ns:" + testNamespace)
-		utils.Kubectl("apply", "-f", case3PolicyYaml, "-n", testNamespace,
+		syncUtils.Kubectl("apply", "-f", case3PolicyYaml, "-n", testNamespace,
 			"--kubeconfig=../../kubeconfig_managed")
 		managedPlc := utils.GetWithTimeout(clientManagedDynamic, gvrPolicy, case3PolicyName, testNamespace, true, defaultTimeoutSeconds)
 		Expect(managedPlc).NotTo(BeNil())
 	})
 	AfterEach(func() {
 		By("Deleting a policy on hub cluster in ns:" + testNamespace)
-		utils.Kubectl("delete", "-f", case3PolicyYaml, "-n", testNamespace,
+		syncUtils.Kubectl("delete", "-f", case3PolicyYaml, "-n", testNamespace,
 			"--kubeconfig=../../kubeconfig_hub")
-		utils.Kubectl("delete", "-f", case3PolicyYaml, "-n", testNamespace,
+		syncUtils.Kubectl("delete", "-f", case3PolicyYaml, "-n", testNamespace,
 			"--kubeconfig=../../kubeconfig_managed")
 		opt := metav1.ListOptions{}
 		utils.ListWithTimeout(clientHubDynamic, gvrPolicy, opt, 0, true, defaultTimeoutSeconds)
 		utils.ListWithTimeout(clientManagedDynamic, gvrPolicy, opt, 0, true, defaultTimeoutSeconds)
 		By("clean up all events")
-		utils.Kubectl("delete", "events", "-n", testNamespace, "--all",
+		syncUtils.Kubectl("delete", "events", "-n", testNamespace, "--all",
 			"--kubeconfig=../../kubeconfig_managed")
 	})
 	It("Should not set overall compliancy to compliant", func() {
@@ -180,12 +181,12 @@ var _ = Describe("Test status sync with multiple templates", func() {
 			return managedPlc.Object["status"].(map[string]interface{})["compliant"]
 		}, defaultTimeoutSeconds, 1).Should(Equal("Compliant"))
 		By("Patching policy template to remove template: case3-test-policy-trustedcontainerpolicy1")
-		utils.Kubectl("apply", "-f", "../resources/case3_multiple_templates/case3-test-policy-without-template1.yaml", "-n", testNamespace,
+		syncUtils.Kubectl("apply", "-f", "../resources/case3_multiple_templates/case3-test-policy-without-template1.yaml", "-n", testNamespace,
 			"--kubeconfig=../../kubeconfig_hub")
 		hubPlc := utils.GetWithTimeout(clientHubDynamic, gvrPolicy, case3PolicyName, testNamespace, true, defaultTimeoutSeconds)
 		Expect(hubPlc).NotTo(BeNil())
 		By("Creating a policy on managed cluster in ns:" + testNamespace)
-		utils.Kubectl("apply", "-f", "../resources/case3_multiple_templates/case3-test-policy-without-template1.yaml", "-n", testNamespace,
+		syncUtils.Kubectl("apply", "-f", "../resources/case3_multiple_templates/case3-test-policy-without-template1.yaml", "-n", testNamespace,
 			"--kubeconfig=../../kubeconfig_managed")
 		managedPlc = utils.GetWithTimeout(clientManagedDynamic, gvrPolicy, case3PolicyName, testNamespace, true, defaultTimeoutSeconds)
 		Expect(managedPlc).NotTo(BeNil())
@@ -216,12 +217,12 @@ var _ = Describe("Test status sync with multiple templates", func() {
 			return managedPlc.Object["status"].(map[string]interface{})["compliant"]
 		}, defaultTimeoutSeconds, 1).Should(Equal("Compliant"))
 		By("Patching policy template to remove template: case3-test-policy-trustedcontainerpolicy2")
-		utils.Kubectl("apply", "-f", "../resources/case3_multiple_templates/case3-test-policy-without-template2.yaml", "-n", testNamespace,
+		syncUtils.Kubectl("apply", "-f", "../resources/case3_multiple_templates/case3-test-policy-without-template2.yaml", "-n", testNamespace,
 			"--kubeconfig=../../kubeconfig_hub")
 		hubPlc := utils.GetWithTimeout(clientHubDynamic, gvrPolicy, case3PolicyName, testNamespace, true, defaultTimeoutSeconds)
 		Expect(hubPlc).NotTo(BeNil())
 		By("Creating a policy on managed cluster in ns:" + testNamespace)
-		utils.Kubectl("apply", "-f", "../resources/case3_multiple_templates/case3-test-policy-without-template2.yaml", "-n", testNamespace,
+		syncUtils.Kubectl("apply", "-f", "../resources/case3_multiple_templates/case3-test-policy-without-template2.yaml", "-n", testNamespace,
 			"--kubeconfig=../../kubeconfig_managed")
 		managedPlc = utils.GetWithTimeout(clientManagedDynamic, gvrPolicy, case3PolicyName, testNamespace, true, defaultTimeoutSeconds)
 		Expect(managedPlc).NotTo(BeNil())

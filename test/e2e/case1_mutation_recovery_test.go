@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 	policiesv1 "github.com/open-cluster-management/governance-policy-propagator/pkg/apis/policy/v1"
 	"github.com/open-cluster-management/governance-policy-propagator/test/utils"
+	syncUtils "github.com/open-cluster-management/governance-policy-status-sync/test/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -20,21 +21,21 @@ const case1PolicyYaml string = "../resources/case1_mutation_recovery/case1-test-
 var _ = Describe("Test mutation recovery", func() {
 	BeforeEach(func() {
 		By("Creating a policy on hub cluster in ns:" + testNamespace)
-		utils.Kubectl("apply", "-f", case1PolicyYaml, "-n", testNamespace,
+		syncUtils.Kubectl("apply", "-f", case1PolicyYaml, "-n", testNamespace,
 			"--kubeconfig=../../kubeconfig_hub")
 		hubPlc := utils.GetWithTimeout(clientHubDynamic, gvrPolicy, case1PolicyName, testNamespace, true, defaultTimeoutSeconds)
 		Expect(hubPlc).NotTo(BeNil())
 		By("Creating a policy on managed cluster in ns:" + testNamespace)
-		utils.Kubectl("apply", "-f", case1PolicyYaml, "-n", testNamespace,
+		syncUtils.Kubectl("apply", "-f", case1PolicyYaml, "-n", testNamespace,
 			"--kubeconfig=../../kubeconfig_managed")
 		managedPlc := utils.GetWithTimeout(clientManagedDynamic, gvrPolicy, case1PolicyName, testNamespace, true, defaultTimeoutSeconds)
 		Expect(managedPlc).NotTo(BeNil())
 	})
 	AfterEach(func() {
 		By("Deleting a policy on hub cluster in ns:" + testNamespace)
-		utils.Kubectl("delete", "-f", case1PolicyYaml, "-n", testNamespace,
+		syncUtils.Kubectl("delete", "-f", case1PolicyYaml, "-n", testNamespace,
 			"--kubeconfig=../../kubeconfig_hub")
-		utils.Kubectl("delete", "-f", case1PolicyYaml, "-n", testNamespace,
+		syncUtils.Kubectl("delete", "-f", case1PolicyYaml, "-n", testNamespace,
 			"--kubeconfig=../../kubeconfig_managed")
 		opt := metav1.ListOptions{}
 		utils.ListWithTimeout(clientHubDynamic, gvrPolicy, opt, 0, true, defaultTimeoutSeconds)
@@ -69,7 +70,7 @@ var _ = Describe("Test mutation recovery", func() {
 	})
 	It("Should recover policy on managed if being deleted", func() {
 		By("Deleting " + case1PolicyYaml + " on managed with spec.policyTemplate = {}")
-		utils.Kubectl("delete", "-f", case1PolicyYaml, "-n", testNamespace,
+		syncUtils.Kubectl("delete", "-f", case1PolicyYaml, "-n", testNamespace,
 			"--kubeconfig=../../kubeconfig_managed")
 		By("Comparing spec between hub and managed policy")
 		hubPlc := utils.GetWithTimeout(clientHubDynamic, gvrPolicy, case1PolicyName, testNamespace, true, defaultTimeoutSeconds)
@@ -99,7 +100,7 @@ var _ = Describe("Test mutation recovery", func() {
 			return managedPlc.Object["status"].(map[string]interface{})["compliant"]
 		}, defaultTimeoutSeconds, 1).Should(Equal("Compliant"))
 		By("clean up all events")
-		utils.Kubectl("delete", "events", "-n", testNamespace, "--all",
+		syncUtils.Kubectl("delete", "events", "-n", testNamespace, "--all",
 			"--kubeconfig=../../kubeconfig_managed")
 	})
 })

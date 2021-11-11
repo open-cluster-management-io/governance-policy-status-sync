@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 	policiesv1 "github.com/open-cluster-management/governance-policy-propagator/pkg/apis/policy/v1"
 	"github.com/open-cluster-management/governance-policy-propagator/test/utils"
+	syncUtils "github.com/open-cluster-management/governance-policy-status-sync/test/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -20,27 +21,27 @@ const case6PolicyYaml string = "../resources/case6_event_msg/case6-test-policy.y
 var _ = Describe("Test event message handling", func() {
 	BeforeEach(func() {
 		By("Creating a policy on hub cluster in ns:" + testNamespace)
-		utils.Kubectl("apply", "-f", case6PolicyYaml, "-n", testNamespace,
+		syncUtils.Kubectl("apply", "-f", case6PolicyYaml, "-n", testNamespace,
 			"--kubeconfig=../../kubeconfig_hub")
 		hubPlc := utils.GetWithTimeout(clientHubDynamic, gvrPolicy, case6PolicyName, testNamespace, true, defaultTimeoutSeconds)
 		Expect(hubPlc).NotTo(BeNil())
 		By("Creating a policy on managed cluster in ns:" + testNamespace)
-		utils.Kubectl("apply", "-f", case6PolicyYaml, "-n", testNamespace,
+		syncUtils.Kubectl("apply", "-f", case6PolicyYaml, "-n", testNamespace,
 			"--kubeconfig=../../kubeconfig_managed")
 		managedPlc := utils.GetWithTimeout(clientManagedDynamic, gvrPolicy, case6PolicyName, testNamespace, true, defaultTimeoutSeconds)
 		Expect(managedPlc).NotTo(BeNil())
 	})
 	AfterEach(func() {
 		By("Deleting a policy on hub cluster in ns:" + testNamespace)
-		utils.Kubectl("delete", "-f", case6PolicyYaml, "-n", testNamespace,
+		syncUtils.Kubectl("delete", "-f", case6PolicyYaml, "-n", testNamespace,
 			"--kubeconfig=../../kubeconfig_hub")
-		utils.Kubectl("delete", "-f", case6PolicyYaml, "-n", testNamespace,
+		syncUtils.Kubectl("delete", "-f", case6PolicyYaml, "-n", testNamespace,
 			"--kubeconfig=../../kubeconfig_managed")
 		opt := metav1.ListOptions{}
 		utils.ListWithTimeout(clientHubDynamic, gvrPolicy, opt, 0, true, defaultTimeoutSeconds)
 		utils.ListWithTimeout(clientManagedDynamic, gvrPolicy, opt, 0, true, defaultTimeoutSeconds)
 		By("clean up all events")
-		utils.Kubectl("delete", "events", "-n", testNamespace, "--all",
+		syncUtils.Kubectl("delete", "events", "-n", testNamespace, "--all",
 			"--kubeconfig=../../kubeconfig_managed")
 	})
 	It("Should remove `(combined from similar events):` prefix but still noncompliant", func() {
