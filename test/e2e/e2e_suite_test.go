@@ -66,7 +66,7 @@ var _ = BeforeSuite(func() {
 	clientManagedDynamic = NewKubeClientDynamic("", kubeconfigManaged, "")
 	defaultImageRegistry = "quay.io/open-cluster-management"
 	testNamespace = "managed"
-	defaultTimeoutSeconds = 30
+	defaultTimeoutSeconds = 60
 	By("Create Namespace if needed")
 	namespacesHub := clientHub.CoreV1().Namespaces()
 	if _, err := namespacesHub.Get(context.TODO(), testNamespace, metav1.GetOptions{}); err != nil && errors.IsNotFound(err) {
