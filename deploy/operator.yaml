@@ -153,7 +153,7 @@ spec:
               fieldPath: metadata.name
         - name: OPERATOR_NAME
           value: governance-policy-status-sync
-        image: quay.io/open-cluster-management/governance-policy-status-sync:latest
+        image: quay.io/open-cluster-management/governance-policy-status-sync:edge
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
