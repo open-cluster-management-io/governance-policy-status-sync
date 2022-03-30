@@ -52,6 +52,7 @@ rules:
   - ""
   resources:
   - events
+  - namespaces
   verbs:
   - create
   - delete
@@ -134,15 +135,13 @@ spec:
   template:
     metadata:
       labels:
-        app: governance-policy-framework
+        app: policy-framework
         name: governance-policy-status-sync
     spec:
       containers:
       - args:
         - --hub-cluster-configfile=/var/run/klusterlet/kubeconfig
         - --enable-lease=true
-        - --log-level=2
-        - --v=0
         command:
         - governance-policy-status-sync
         env:

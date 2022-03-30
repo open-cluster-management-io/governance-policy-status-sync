@@ -12,9 +12,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/go-logr/zapr"
 	"github.com/spf13/pflag"
-	"github.com/stolostron/go-log-utils/zaputil"
 
 	// to ensure that exec-entrypoint and run can make use of them.
 	v1 "k8s.io/api/core/v1"
@@ -27,7 +25,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/klog/v2"
 	"open-cluster-management.io/addon-framework/pkg/lease"
 	addonutils "open-cluster-management.io/addon-framework/pkg/utils"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
@@ -37,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"open-cluster-management.io/governance-policy-status-sync/controllers/sync"
@@ -64,14 +62,6 @@ func init() {
 }
 
 func main() {
-	zflags := zaputil.FlagConfig{
-		LevelName:   "log-level",
-		EncoderName: "log-encoder",
-	}
-
-	zflags.Bind(flag.CommandLine)
-	klog.InitFlags(flag.CommandLine)
-
 	// custom flags for the controler
 	tool.ProcessFlags()
 
@@ -79,19 +69,7 @@ func main() {
 
 	pflag.Parse()
 
-	ctrlZap, err := zflags.BuildForCtrl()
-	if err != nil {
-		panic(fmt.Sprintf("Failed to build zap logger for controller: %v", err))
-	}
-
-	ctrl.SetLogger(zapr.NewLogger(ctrlZap))
-
-	klogZap, err := zaputil.BuildForKlog(zflags.GetConfig(), flag.CommandLine)
-	if err != nil {
-		log.Error(err, "Failed to build zap logger for klog, those logs will not go through zap")
-	} else {
-		klog.SetLogger(zapr.NewLogger(klogZap).WithName("klog"))
-	}
+	logf.SetLogger(zap.New())
 
 	printVersion()
 
@@ -213,6 +191,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	// create namespace with labels
+	var generatedClient kubernetes.Interface = kubernetes.NewForConfigOrDie(managedCfg)
+	if err := tool.CreateClusterNs(&generatedClient, namespace); err != nil {
+		log.Error(err, "")
+		os.Exit(1)
+	}
+
 	// This lease is not related to leader election. This is to report the status of the controller
 	// to the addon framework. This can be seen in the "status" section of the ManagedClusterAddOn
 	// resource objects.
@@ -229,13 +214,16 @@ func main() {
 			}
 		} else {
 			log.Info("Starting lease controller to report status")
-			generatedClient := kubernetes.NewForConfigOrDie(managedCfg)
 			leaseUpdater := lease.NewLeaseUpdater(
 				generatedClient,
-				"governance-policy-framework",
+				"policy-controller",
 				operatorNs,
-				lease.CheckAddonPodFunc(generatedClient.CoreV1(), operatorNs, "app=governance-policy-framework"),
-			).WithHubLeaseConfig(hubCfg, namespace)
+				lease.CheckAddonPodFunc(generatedClient.CoreV1(), operatorNs, "app=policy-framework"),
+				// this additional CheckAddonPodFunc is temporary until the
+				// addon framework independently verifies the config-policy-controller via its lease
+				// see https://github.com/open-cluster-management/backlog/issues/11508
+				lease.CheckAddonPodFunc(generatedClient.CoreV1(), operatorNs, "app=policy-config-policy"),
+			)
 			go leaseUpdater.Start(ctx)
 		}
 	} else {

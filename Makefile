@@ -25,7 +25,7 @@ GIT_HOST ?= github.com/open-cluster-management
 
 PWD := $(shell pwd)
 BASE_DIR := $(shell basename $(PWD))
-export PATH := $(PWD)/bin:$(PATH)
+export PATH=$(shell echo $$PATH):$(PWD)/bin
 
 # Keep an existing GOPATH, make a private one if it is undefined
 GOPATH_DEFAULT := $(PWD)/.go
@@ -44,19 +44,14 @@ IMAGE_NAME_AND_VERSION ?= $(REGISTRY)/$(IMG)
 KIND_NAME ?= test-managed
 KIND_NAMESPACE ?= open-cluster-management-agent-addon
 KIND_VERSION ?= latest
-MANAGED_CLUSTER_NAME ?= managed
-WATCH_NAMESPACE ?= $(MANAGED_CLUSTER_NAME)
-HUB_CONFIG ?= $(PWD)/kubeconfig_hub
-HUB_CONFIG_INTERNAL ?= $(PWD)/kubeconfig_hub_internal
-MANAGED_CONFIG ?= $(PWD)/kubeconfig_managed
 ifneq ($(KIND_VERSION), latest)
 	KIND_ARGS = --image kindest/node:$(KIND_VERSION)
 else
 	KIND_ARGS =
 endif
-# Fetch Ginkgo/Gomega versions from go.mod
-GINKGO_VERSION := $(shell awk '/github.com\/onsi\/ginkgo/ {print $$2}' go.mod | head -1)
-GOMEGA_VERSION := $(shell awk '/github.com\/onsi\/gomega/ {print $$2}' go.mod)
+# KubeBuilder configuration
+KBVERSION := 2.3.1
+
 LOCAL_OS := $(shell uname)
 ifeq ($(LOCAL_OS),Linux)
     TARGET_OS ?= linux
@@ -114,23 +109,14 @@ lint: lint-dependencies lint-all
 ############################################################
 # test section
 ############################################################
-KUBEBUILDER_DIR = /usr/local/kubebuilder/bin
-KBVERSION = 3.2.0
-K8S_VERSION = 1.21.2
 
 test:
 	@go test ${TESTARGS} `go list ./... | grep -v test/e2e`
 
 test-dependencies:
-	@if (ls $(KUBEBUILDER_DIR)/*); then \
-		echo "^^^ Files found in $(KUBEBUILDER_DIR). Skipping installation."; exit 1; \
-	else \
-		echo "^^^ Kubebuilder binaries not found. Installing Kubebuilder binaries."; \
-	fi
-	sudo mkdir -p $(KUBEBUILDER_DIR)
-	sudo curl -L https://github.com/kubernetes-sigs/kubebuilder/releases/download/v$(KBVERSION)/kubebuilder_$(GOOS)_$(GOARCH) -o $(KUBEBUILDER_DIR)/kubebuilder
-	sudo chmod +x $(KUBEBUILDER_DIR)/kubebuilder
-	curl -L "https://go.kubebuilder.io/test-tools/$(K8S_VERSION)/$(GOOS)/$(GOARCH)" | sudo tar xz --strip-components=2 -C $(KUBEBUILDER_DIR)/
+	curl -L https://github.com/kubernetes-sigs/kubebuilder/releases/download/v$(KBVERSION)/kubebuilder_$(KBVERSION)_$(GOOS)_$(GOARCH).tar.gz | tar -xz -C /tmp/
+	sudo mv -n /tmp/kubebuilder_$(KBVERSION)_$(GOOS)_$(GOARCH) /usr/local/kubebuilder
+	export PATH=$(PATH):/usr/local/kubebuilder/bin
 
 ############################################################
 # build section
@@ -242,15 +228,13 @@ install-crds:
 install-resources:
 	@echo creating namespace on hub
 	kubectl create ns managed --kubeconfig=$(PWD)/kubeconfig_hub
-	@echo creating namespace on managed
-	kubectl create ns $(MANAGED_CLUSTER_NAME) --kubeconfig=$(MANAGED_CONFIG)
 
 e2e-test:
-	ginkgo -v --slow-spec-threshold=10s test/e2e
+	ginkgo -v --slowSpecThreshold=10 test/e2e
 
 e2e-dependencies:
-	go get github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_VERSION)
-	go get github.com/onsi/gomega/...@$(GOMEGA_VERSION)
+	go get github.com/onsi/ginkgo/ginkgo@v1.16.4
+	go get github.com/onsi/gomega/...@v1.13.0
 
 e2e-debug:
 	@echo gathering hub info
