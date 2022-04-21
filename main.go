@@ -73,6 +73,7 @@ func main() {
 	}
 
 	zflags.Bind(flag.CommandLine)
+	klog.InitFlags(flag.CommandLine)
 
 	// custom flags for the controler
 	tool.ProcessFlags()
