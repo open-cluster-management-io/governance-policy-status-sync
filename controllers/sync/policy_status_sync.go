@@ -9,6 +9,7 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -258,6 +259,32 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, request reconcile.Requ
 		}
 		// sort by lasttimestamp
 		sort.Slice(history, func(i, j int) bool {
+			if history[i].LastTimestamp.String() == history[j].LastTimestamp.String() {
+				// Timestamps are the same: attempt to use the event name.
+				// Conventionally (in client-go), the event name has a hexadecimal
+				// nanosecond timestamp as a suffix after a period.
+				iNameParts := strings.Split(history[i].EventName, ".")
+				jNameParts := strings.Split(history[j].EventName, ".")
+				errMsg := "Unable to interpret hexadecimal timestamp in event name, " +
+					"can't guarantee ordering of events in this status"
+
+				iNanos, err := strconv.ParseInt(iNameParts[len(iNameParts)-1], 16, 64)
+				if err != nil {
+					reqLogger.Error(err, errMsg, "eventName", history[i].EventName)
+
+					return false
+				}
+
+				jNanos, err := strconv.ParseInt(jNameParts[len(jNameParts)-1], 16, 64)
+				if err != nil {
+					reqLogger.Error(err, errMsg, "eventName", history[j].EventName)
+
+					return false
+				}
+
+				return iNanos > jNanos
+			}
+
 			return history[i].LastTimestamp.Time.After(history[j].LastTimestamp.Time)
 		})
 		// remove duplicates
