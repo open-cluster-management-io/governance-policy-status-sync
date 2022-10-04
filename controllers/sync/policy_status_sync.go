@@ -171,7 +171,7 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, request reconcile.Requ
 		return reconcile.Result{}, err
 	}
 	// filter events to current policy instance and build map
-	eventForPolicyMap := make(map[string]*[]policiesv1.ComplianceHistory)
+	eventForPolicyMap := make(map[string]*[]historyEvent)
 	// panic if regexp invalid
 	rgx := regexp.MustCompile(`(?i)^policy:\s*([A-Za-z0-9.-]+)\s*\/([A-Za-z0-9.-]+)`)
 	for _, event := range eventList.Items {
@@ -180,14 +180,18 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, request reconcile.Requ
 		if event.InvolvedObject.Kind == policiesv1.Kind && event.InvolvedObject.APIVersion == policiesv1APIVersion &&
 			event.InvolvedObject.Name == instance.GetName() && reason != "" {
 			templateName := rgx.FindStringSubmatch(event.Reason)[2]
-			eventHistory := policiesv1.ComplianceHistory{
-				LastTimestamp: event.LastTimestamp,
-				Message:       strings.TrimSpace(strings.TrimPrefix(event.Message, "(combined from similar events):")),
-				EventName:     event.GetName(),
+			eventHistory := historyEvent{
+				ComplianceHistory: policiesv1.ComplianceHistory{
+					LastTimestamp: event.LastTimestamp,
+					Message: strings.TrimSpace(strings.TrimPrefix(
+						event.Message, "(combined from similar events):")),
+					EventName: event.GetName(),
+				},
+				eventTime: &event.EventTime,
 			}
 
 			if eventForPolicyMap[templateName] == nil {
-				eventForPolicyMap[templateName] = &[]policiesv1.ComplianceHistory{}
+				eventForPolicyMap[templateName] = &[]historyEvent{}
 			}
 
 			templateEvents := append(*eventForPolicyMap[templateName], eventHistory)
@@ -236,7 +240,7 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, request reconcile.Requ
 			}
 		}
 
-		history := []policiesv1.ComplianceHistory{}
+		history := []historyEvent{}
 		if eventForPolicyMap[tName] != nil {
 			history = *eventForPolicyMap[tName]
 		}
@@ -252,14 +256,20 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, request reconcile.Requ
 					break
 				}
 			}
-			// doesn't exists, append to history
+			// doesn't exist, append to history
 			if !exists {
-				history = append(history, ech)
+				history = append(history, historyEvent{ComplianceHistory: ech})
 			}
 		}
-		// sort by lasttimestamp
+		// sort by lasttimestamp, break ties with EventTime (if present) or EventName
 		sort.Slice(history, func(i, j int) bool {
-			if history[i].LastTimestamp.String() == history[j].LastTimestamp.String() {
+			if history[i].LastTimestamp.Equal(&history[j].LastTimestamp) {
+				if history[i].eventTime != nil && history[j].eventTime != nil {
+					reqLogger.V(2).Info("Event timestamp collision, order determined by EventTime",
+						"event1Name", history[i].EventName, "event2Name", history[j].EventName)
+
+					return !history[i].eventTime.Before(history[j].eventTime)
+				}
 				// Timestamps are the same: attempt to use the event name.
 				// Conventionally (in client-go), the event name has a hexadecimal
 				// nanosecond timestamp as a suffix after a period.
@@ -282,16 +292,19 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, request reconcile.Requ
 					return false
 				}
 
+				reqLogger.V(2).Info("Event timestamp collision, order determined by hex timestamp in name",
+					"event1Name", history[i].EventName, "event2Name", history[j].EventName)
+
 				return iNanos > jNanos
 			}
 
-			return history[i].LastTimestamp.Time.After(history[j].LastTimestamp.Time)
+			return !history[i].LastTimestamp.Time.Before(history[j].LastTimestamp.Time)
 		})
 		// remove duplicates
 		newHistory := []policiesv1.ComplianceHistory{}
 
 		for historyIndex := 0; historyIndex < len(history); historyIndex++ {
-			newHistory = append(newHistory, history[historyIndex])
+			newHistory = append(newHistory, history[historyIndex].ComplianceHistory)
 
 			for j := historyIndex; j < len(history); j++ {
 				if history[historyIndex].EventName == history[j].EventName &&
@@ -390,4 +403,9 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, request reconcile.Requ
 	reqLogger.Info("Reconciling complete")
 
 	return reconcile.Result{}, nil
+}
+
+type historyEvent struct {
+	policiesv1.ComplianceHistory
+	eventTime *metav1.MicroTime
 }
