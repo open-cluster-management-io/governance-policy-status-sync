@@ -187,7 +187,7 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, request reconcile.Requ
 						event.Message, "(combined from similar events):")),
 					EventName: event.GetName(),
 				},
-				eventTime: &event.EventTime,
+				eventTime: *event.EventTime.DeepCopy(),
 			}
 
 			if eventForPolicyMap[templateName] == nil {
@@ -264,11 +264,11 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, request reconcile.Requ
 		// sort by lasttimestamp, break ties with EventTime (if present) or EventName
 		sort.Slice(history, func(i, j int) bool {
 			if history[i].LastTimestamp.Equal(&history[j].LastTimestamp) {
-				if history[i].eventTime != nil && history[j].eventTime != nil {
+				if !history[i].eventTime.IsZero() && !history[j].eventTime.IsZero() {
 					reqLogger.V(2).Info("Event timestamp collision, order determined by EventTime",
 						"event1Name", history[i].EventName, "event2Name", history[j].EventName)
 
-					return !history[i].eventTime.Before(history[j].eventTime)
+					return !history[i].eventTime.Before(&history[j].eventTime)
 				}
 				// Timestamps are the same: attempt to use the event name.
 				// Conventionally (in client-go), the event name has a hexadecimal
@@ -407,5 +407,5 @@ func (r *PolicyReconciler) Reconcile(ctx context.Context, request reconcile.Requ
 
 type historyEvent struct {
 	policiesv1.ComplianceHistory
-	eventTime *metav1.MicroTime
+	eventTime metav1.MicroTime
 }
