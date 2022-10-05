@@ -186,18 +186,10 @@ var _ = Describe("Test mutation recovery", func() {
 			"Normal",
 			"policy: managed/case1-test-policy-trustedcontainerpolicy",
 			"Compliant; No violation detected")
-		By("Checking if policy status is compliant")
-		Eventually(func() interface{} {
-			managedPlc = utils.GetWithTimeout(
-				clientManagedDynamic,
-				gvrPolicy,
-				case1PolicyName,
-				testNamespace,
-				true,
-				defaultTimeoutSeconds)
 
-			return getCompliant(managedPlc)
-		}, defaultTimeoutSeconds, 1).Should(Equal("Compliant"))
+		By("Checking if policy status is compliant")
+		Eventually(checkCompliance(case1PolicyName), defaultTimeoutSeconds, 1).
+			Should(Equal("Compliant"))
 
 		By("Update status to NonCompliant")
 		Eventually(
@@ -216,18 +208,11 @@ var _ = Describe("Test mutation recovery", func() {
 			1,
 		).Should(BeNil())
 		Expect(getCompliant(managedPlc)).To(Equal("NonCompliant"))
-		By("Checking if policy status was recovered to compliant")
-		Eventually(func() interface{} {
-			managedPlc = utils.GetWithTimeout(
-				clientManagedDynamic,
-				gvrPolicy,
-				case1PolicyName,
-				testNamespace,
-				true,
-				defaultTimeoutSeconds)
 
-			return getCompliant(managedPlc)
-		}, defaultTimeoutSeconds, 1).Should(Equal("Compliant"))
+		By("Checking if policy status was recovered to compliant")
+		Eventually(checkCompliance(case1PolicyName), defaultTimeoutSeconds, 1).
+			Should(Equal("Compliant"))
+
 		By("clean up all events")
 		_, err := utils.KubectlWithOutput("delete", "events", "-n", testNamespace, "--all",
 			"--kubeconfig=../../kubeconfig_managed")

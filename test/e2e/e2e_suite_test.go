@@ -189,3 +189,26 @@ func LoadConfig(url, kubeconfig, context string) (*rest.Config, error) {
 
 	return nil, fmt.Errorf("could not create a valid kubeconfig")
 }
+
+func checkCompliance(name string) func() string {
+	return func() string {
+		getter := clientManagedDynamic.Resource(gvrPolicy).Namespace(testNamespace)
+
+		policy, err := getter.Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			return "policy not found"
+		}
+
+		status, statusOk := policy.Object["status"].(map[string]interface{})
+		if !statusOk {
+			return "policy has no status"
+		}
+
+		compliant, compliantOk := status["compliant"].(string)
+		if !compliantOk {
+			return "policy status has no complianceState"
+		}
+
+		return compliant
+	}
+}
