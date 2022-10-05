@@ -39,17 +39,10 @@ var _ = Describe("Test event sorting by name when timestamps collide", Ordered, 
 		)
 		Expect(err).Should(BeNil())
 
-		Eventually(func() interface{} {
-			managedPlc := utils.GetWithTimeout(
-				clientManagedDynamic,
-				gvrPolicy,
-				case7PolicyName,
-				testNamespace,
-				true,
-				defaultTimeoutSeconds)
-
-			return getCompliant(managedPlc)
-		}, defaultTimeoutSeconds, 1).Should(Equal("Compliant"))
+		Eventually(checkCompliance(case7PolicyName), defaultTimeoutSeconds, 1).
+			Should(Equal("Compliant"))
+		Consistently(checkCompliance(case7PolicyName), "15s", 1).
+			Should(Equal("Compliant"))
 	})
 
 	It("Creates a second event with the same timestamp, and shows noncompliant", func() {
@@ -58,17 +51,10 @@ var _ = Describe("Test event sorting by name when timestamps collide", Ordered, 
 		)
 		Expect(err).Should(BeNil())
 
-		Eventually(func() interface{} {
-			managedPlc := utils.GetWithTimeout(
-				clientManagedDynamic,
-				gvrPolicy,
-				case7PolicyName,
-				testNamespace,
-				true,
-				defaultTimeoutSeconds)
-
-			return getCompliant(managedPlc)
-		}, defaultTimeoutSeconds, 1).Should(Equal("NonCompliant"))
+		Eventually(checkCompliance(case7PolicyName), defaultTimeoutSeconds, 1).
+			Should(Equal("NonCompliant"))
+		Consistently(checkCompliance(case7PolicyName), "15s", 1).
+			Should(Equal("NonCompliant"))
 	})
 
 	It("Creates a third with the same timestamp, and shows compliant", func() {
@@ -77,17 +63,10 @@ var _ = Describe("Test event sorting by name when timestamps collide", Ordered, 
 		)
 		Expect(err).Should(BeNil())
 
-		Eventually(func() interface{} {
-			managedPlc := utils.GetWithTimeout(
-				clientManagedDynamic,
-				gvrPolicy,
-				case7PolicyName,
-				testNamespace,
-				true,
-				defaultTimeoutSeconds)
-
-			return getCompliant(managedPlc)
-		}, defaultTimeoutSeconds, 1).Should(Equal("Compliant"))
+		Eventually(checkCompliance(case7PolicyName), defaultTimeoutSeconds, 1).
+			Should(Equal("Compliant"))
+		Consistently(checkCompliance(case7PolicyName), "15s", 1).
+			Should(Equal("Compliant"))
 	})
 
 	AfterAll(func() {
@@ -116,17 +95,10 @@ var _ = Describe("Test event sorting by eventtime when timestamps collide", Orde
 		)
 		Expect(err).Should(BeNil())
 
-		Eventually(func() interface{} {
-			managedPlc := utils.GetWithTimeout(
-				clientManagedDynamic,
-				gvrPolicy,
-				case7PolicyName,
-				testNamespace,
-				true,
-				defaultTimeoutSeconds)
-
-			return getCompliant(managedPlc)
-		}, defaultTimeoutSeconds, 1).Should(Equal("Compliant"))
+		Eventually(checkCompliance(case7PolicyName), defaultTimeoutSeconds, 1).
+			Should(Equal("Compliant"))
+		Consistently(checkCompliance(case7PolicyName), "15s", 1).
+			Should(Equal("Compliant"))
 	})
 
 	It("Creates a second event with the same timestamp, and shows noncompliant", func() {
@@ -135,17 +107,10 @@ var _ = Describe("Test event sorting by eventtime when timestamps collide", Orde
 		)
 		Expect(err).Should(BeNil())
 
-		Eventually(func() interface{} {
-			managedPlc := utils.GetWithTimeout(
-				clientManagedDynamic,
-				gvrPolicy,
-				case7PolicyName,
-				testNamespace,
-				true,
-				defaultTimeoutSeconds)
-
-			return getCompliant(managedPlc)
-		}, defaultTimeoutSeconds, 1).Should(Equal("NonCompliant"))
+		Eventually(checkCompliance(case7PolicyName), defaultTimeoutSeconds, 1).
+			Should(Equal("NonCompliant"))
+		Consistently(checkCompliance(case7PolicyName), "15s", 1).
+			Should(Equal("NonCompliant"))
 	})
 
 	It("Creates a third with the same timestamp, and shows compliant", func() {
@@ -154,17 +119,10 @@ var _ = Describe("Test event sorting by eventtime when timestamps collide", Orde
 		)
 		Expect(err).Should(BeNil())
 
-		Eventually(func() interface{} {
-			managedPlc := utils.GetWithTimeout(
-				clientManagedDynamic,
-				gvrPolicy,
-				case7PolicyName,
-				testNamespace,
-				true,
-				defaultTimeoutSeconds)
-
-			return getCompliant(managedPlc)
-		}, defaultTimeoutSeconds, 1).Should(Equal("Compliant"))
+		Eventually(checkCompliance(case7PolicyName), defaultTimeoutSeconds, 1).
+			Should(Equal("Compliant"))
+		Consistently(checkCompliance(case7PolicyName), "15s", 1).
+			Should(Equal("Compliant"))
 	})
 
 	AfterAll(func() {
